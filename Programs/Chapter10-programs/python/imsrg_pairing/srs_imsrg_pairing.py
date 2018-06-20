@@ -798,49 +798,40 @@ def flow_imsrg3(eta1B, eta2B, eta3B, f, Gamma, W, user_data):
   occC_2B   = user_data["occC_2B"]
   occphA_2B = user_data["occphA_2B"]
 
-  #SRS Reuse the imsrg(2) stuff
-  dE, df, dGamma = flow_imsrg2(eta1B, eta2B, f, Gamma, user_data)
-  dW = np.zeros_like(W)
-
-
-  #SRS  BAIL OUT
-#  return dE, df, dGamma, dW
-
-
+  #SRS Reuse the imsrg(2) stuf f
+  dE, df, dGamma = flow_imsrg2 (eta1B, eta2B, f, Gamma, user_data)
+  dW = np.zeros_like(W)        
+                               
+                               
+  #SRS  BAIL OUT               
+#  return dE, df, dGamma, dW   
+                               
+                               
   #SRS three body piece (double gulp)
   #SRS [2,2]->3
   tstart = time.time()
   print "[2,2]->3"
   for bra,(p,q,r) in enumerate(bas3B):
-    pq = idx2B[(p,q)]
-    rq = idx2B[(r,q)]
-    pr = idx2B[(p,r)]
+    pq,rq,pr = idx2B[(p,q)], idx2B[(r,q)], idx2B[(p,r)]
     for ket,(s,t,u) in enumerate(bas3B):
       if ket<bra: continue
-      tu = idx2B[(t,u)]
-      su = idx2B[(s,u)]
-      ts = idx2B[(t,s)]
-      val = 0.
+      tu,su,ts = idx2B[(t,u)], idx2B[(s,u)], idx2B[(t,s)]
+      dw = 0.
       for v in range(dim1B):
-        sv = idx2B[(s,v)]
-        tv = idx2B[(t,v)]
-        uv = idx2B[(u,v)]
-        vp = idx2B[(v,p)]
-        vq = idx2B[(v,q)]
-        vr = idx2B[(v,r)]
-        val +=( (eta2B[pq, sv ] * Gamma[vr, tu ] - Gamma[pq, sv ] * eta2B[vr, tu ])
-              - (eta2B[rq, sv ] * Gamma[vp, tu ] - Gamma[rq, sv ] * eta2B[vp, tu ])
-              - (eta2B[pr, sv ] * Gamma[vq, tu ] - Gamma[pr, sv ] * eta2B[vq, tu ])
-              - (eta2B[pq, tv ] * Gamma[vr, su ] - Gamma[pq, tv ] * eta2B[vr, su ])
-              + (eta2B[rq, tv ] * Gamma[vp, su ] - Gamma[rq, tv ] * eta2B[vp, su ])
-              + (eta2B[pr, tv ] * Gamma[vq, su ] - Gamma[pr, tv ] * eta2B[vq, su ])
-              - (eta2B[pq, uv ] * Gamma[vr, ts ] - Gamma[pq, uv ] * eta2B[vr, ts ])
-              + (eta2B[rq, uv ] * Gamma[vp, ts ] - Gamma[rq, uv ] * eta2B[vp, ts ])
-              + (eta2B[pr, uv ] * Gamma[vq, ts ] - Gamma[pr, uv ] * eta2B[vq, ts ]) )
+        sv,tv,uv = idx2B[(s,v)], idx2B[(t,v)], idx2B[(u,v)]
+        vp,vq,vr = idx2B[(v,p)], idx2B[(v,q)], idx2B[(v,r)]
+        dw  +=( (eta2B[pq, sv ] * Gamma[vr, tu ]   -   Gamma[pq, sv ] * eta2B[vr, tu ])
+              - (eta2B[rq, sv ] * Gamma[vp, tu ]   -   Gamma[rq, sv ] * eta2B[vp, tu ])
+              - (eta2B[pr, sv ] * Gamma[vq, tu ]   -   Gamma[pr, sv ] * eta2B[vq, tu ])
+              - (eta2B[pq, tv ] * Gamma[vr, su ]   -   Gamma[pq, tv ] * eta2B[vr, su ])
+              + (eta2B[rq, tv ] * Gamma[vp, su ]   -   Gamma[rq, tv ] * eta2B[vp, su ])
+              + (eta2B[pr, tv ] * Gamma[vq, su ]   -   Gamma[pr, tv ] * eta2B[vq, su ])
+              - (eta2B[pq, uv ] * Gamma[vr, ts ]   -   Gamma[pq, uv ] * eta2B[vr, ts ])
+              + (eta2B[rq, uv ] * Gamma[vp, ts ]   -   Gamma[rq, uv ] * eta2B[vp, ts ])
+              + (eta2B[pr, uv ] * Gamma[vq, ts ]   -   Gamma[pr, uv ] * eta2B[vq, ts ]) )
 
-      dW[bra,ket] += val
-      if bra != ket:
-        dW[ket,bra] += val
+      dW[bra,ket] += dw
+      dW[bra,ket] = dW[ket,bra]
 
   tstop = time.time()
   print "elapsed: ",tstop-tstart
@@ -908,37 +899,44 @@ def flow_imsrg3(eta1B, eta2B, eta3B, f, Gamma, W, user_data):
   #SRS These should definitely be done with matrix multiplication...
   print "[3,3]->2"
   tstart = time.time()
-  for p in range(dim1B):
-    for q in range(dim1B):
-      for r in range(dim1B):
-        for s in range(dim1B):
+  for bra, (p,q) in enumerate(bas2B):
+    for ket, (r,s) in enumerate(bas2B):
+          if ket < bra: continue
+#  for p in range(dim1B):
+#    for q in range(dim1B):
+#      for r in range(dim1B):
+#        for s in range(dim1B):
           dG = 0.
-          for i in holes:
-            for a in particles:
+          for a in particles:
+            pqa,rsa = idx3B[(p,q,a)],idx3B[(r,s,a)]
+            for i in holes:
+              pqi,rsi = idx3B[(p,q,i)],idx3B[(r,s,i)]
               for b in particles:
                 for c in particles:
-                  dG += 1./6 * ( eta3B[idx3B[(p,q,i)],idx3B[(a,b,c)]]     * W[idx3B[(a,b,c)],idx3B[(r,s,i)]]
-                              -W[idx3B[(p,q,i)],idx3B[(a,b,c)]] * eta3B[idx3B[(a,b,c)],idx3B[(r,s,i)]] )
-          for a in particles:
-            for i in holes:
+                  abc = idx3B[(a,b,c)]
+                  dG += 1./6 * ( eta3B[pqi,abc] * W[abc,rsi]  -  W[pqi,abc] * eta3B[abc,rsi] )
               for j in holes:
                 for k in holes:
-                  dG -= 1./6 * ( eta3B[idx3B[(p,q,i)],idx3B[(a,b,c)]]     * W[idx3B[(a,b,c)],idx3B[(r,s,i)]]
-                              -W[idx3B[(p,q,i)],idx3B[(a,b,c)]] * eta3B[idx3B[(a,b,c)],idx3B[(r,s,i)]] )
+                  ijk = idx3B[(i,j,k)]
+                  dG -= 1./6 * ( eta3B[pqa,ijk] * W[ijk,rsa]  -   W[pqa,ijk] * eta3B[ijk,rsa] )
   #SRS [3,3]->2  phph
           for i in holes:
             for j in holes:
+              pij,qij,rij,sij = idx3B[(p,i,j)], idx3B[(q,i,j)], idx3B[(r,i,j)], idx3B[(s,i,j)]
               for a in particles:
                 for b in particles:
-                  dG += 1./4 * ( eta3B[idx3B[(p,i,j)],idx3B[(r,a,b)]]  *  W[idx3B[(a,b,q)],idx3B[(i,j,s)]]
-                               - eta3B[idx3B[(q,i,j)],idx3B[(r,a,b)]]  *  W[idx3B[(a,b,p)],idx3B[(i,j,s)]]
-                               - eta3B[idx3B[(p,i,j)],idx3B[(s,a,b)]]  *  W[idx3B[(a,b,q)],idx3B[(i,j,r)]]
-                               + eta3B[idx3B[(q,i,j)],idx3B[(s,a,b)]]  *  W[idx3B[(a,b,p)],idx3B[(i,j,r)]]
-                               - eta3B[idx3B[(p,i,j)],idx3B[(r,i,j)]]  *  W[idx3B[(a,b,q)],idx3B[(a,b,s)]]
-                               + eta3B[idx3B[(q,i,j)],idx3B[(r,i,j)]]  *  W[idx3B[(a,b,p)],idx3B[(a,b,s)]]
-                               + eta3B[idx3B[(p,i,j)],idx3B[(s,i,j)]]  *  W[idx3B[(a,b,q)],idx3B[(a,b,r)]]
-                               - eta3B[idx3B[(q,i,j)],idx3B[(s,i,j)]]  *  W[idx3B[(a,b,p)],idx3B[(a,b,r)]]  )
-          dGamma[idx2B[(p,q)], idx2B[(r,s)]] += dG
+                  abp,abq,abr,abS = idx3B[(a,b,p)], idx3B[(a,b,q)], idx3B[(a,b,r)], idx3B[(a,b,s)]
+                  dG += 1./4 * ( eta3B[pij,abr]  *  W[abq,sij]
+                               - eta3B[qij,abr]  *  W[abp,sij]
+                               - eta3B[pij,abS]  *  W[abq,rij]
+                               + eta3B[qij,abS]  *  W[abp,rij]
+                               - eta3B[pij,rij]  *  W[abq,abS]
+                               + eta3B[qij,rij]  *  W[abp,abS]
+                               + eta3B[pij,sij]  *  W[abq,abr]
+                               - eta3B[qij,sij]  *  W[abp,abr]  )
+#          dGamma[idx2B[(p,q)], idx2B[(r,s)]] += dG
+          dGamma[bra,ket] += dG
+          dGamma[ket,bra] = dGamma[bra,ket]
 
   tstop = time.time()
   print "elapsed: ",tstop-tstart
@@ -948,10 +946,13 @@ def flow_imsrg3(eta1B, eta2B, eta3B, f, Gamma, W, user_data):
   #SRS [2,3]->2 and [3,2]->2
   print "[2,3]->2"
   tstart = time.time()
-  for p in range(dim1B):
-    for q in range(dim1B):
-      for r in range(dim1B):
-        for s in range(dim1B):
+  for bra,(p,q) in enumerate( bas2B):
+    for ket, (r,s) in enumerate(bas2B):
+#  for p in range(dim1B):
+#    for q in range(dim1B):
+#      for r in range(dim1B):
+#        for s in range(dim1B):
+          if ket < bra : continue
           dG = 0.
           for i in holes:
             for a in particles:
@@ -973,7 +974,9 @@ def flow_imsrg3(eta1B, eta2B, eta3B, f, Gamma, W, user_data):
                             + Gamma[idx2B[(i,j)],idx2B[(a,s)]] * eta3B[idx3B[(p,a,q)],idx3B[(r,i,j)]]
                             + eta2B[idx2B[(i,j)],idx2B[(a,r)]] *     W[idx3B[(p,a,q)],idx3B[(s,i,j)]]
                             - Gamma[idx2B[(i,j)],idx2B[(a,r)]] * eta3B[idx3B[(p,a,q)],idx3B[(s,i,j)]]  )
-          dGamma[idx2B[(p,q)],idx2B[(r,s)]] += dG  
+#          dGamma[idx2B[(p,q)],idx2B[(r,s)]] += dG  
+          dGamma[bra,ket] += dG  
+          dGamma[ket,bra] = dGamma[bra,ket]
 
   tstop = time.time()
   print "elapsed: ",tstop-tstart
@@ -999,79 +1002,78 @@ def flow_imsrg3(eta1B, eta2B, eta3B, f, Gamma, W, user_data):
 
 
   #SRS [3,3]->3
+  #SRS This is the worst one. Very slow...
   print "[3,3]->3"
   if np.linalg.norm(eta3B) < 0.01:
     print "(skipping)"
   else:
     tstart = time.time()
-    for p in range(dim1B):
-      for q in range(dim1B):
-        for r in range(dim1B):
-          pqr = idx3B[(p,q,r)]
-          for s in range(dim1B):
-            for t in range(dim1B):
-              for u in range(dim1B):
-                stu = idx3B[(s,t,u)]
-                dw = 0.
-                for i in holes:
-                  for j in holes:
-                    for k in holes:
-                      ijk = idx3B[(i,j,k)]
-                      sij,tij,uij = idx3B[(s,i,j)], idx3B[(t,i,j)], idx3B[(u,i,j)]
-                      tku,sku,tks = idx3B[(t,k,u)], idx3B[(s,k,u)], idx3B[(t,k,s)]
-                      pqk,rqk,prk = idx3B[(p,q,k)], idx3B[(r,q,k)], idx3B[(p,r,k)]
-                      ijr,ijp,ijq = idx3B[(i,j,r)], idx3B[(i,j,p)], idx3B[(i,j,q)]
+    for bra, (p,q,r) in enumerate(bas3B):
+      for ket, (s,t,u) in enumerate(bas3B):
+        if ket < bra: continue
+        pqr, stu = bra,ket
+        dw = 0.
+        for i in holes:
+          for j in holes:
+            for k in holes:
+              ijk = idx3B[(i,j,k)]
+              sij,tij,uij = idx3B[(s,i,j)], idx3B[(t,i,j)], idx3B[(u,i,j)]
+              tku,sku,tks = idx3B[(t,k,u)], idx3B[(s,k,u)], idx3B[(t,k,s)]
+              pqk,rqk,prk = idx3B[(p,q,k)], idx3B[(r,q,k)], idx3B[(p,r,k)]
+              ijr,ijp,ijq = idx3B[(i,j,r)], idx3B[(i,j,p)], idx3B[(i,j,q)]
   
-                      dw += ( eta3B[pqr,ijk]  *     W[ijk, stu ]
-                               -  W[pqr,ijk]  * eta3B[ijk, stu ] )
-                      dw += 0.5*( eta3B[pqk,sij]  *     W[ijr, tku]
-                                   -  W[pqk,sij]  * eta3B[ijr, tku]
-                                - eta3B[rqk,sij]  *     W[ijp, tku]
-                                   +  W[rqk,sij]  * eta3B[ijp, tku]
-                                - eta3B[prk,sij]  *     W[ijq, tku]
-                                   +  W[prk,sij]  * eta3B[ijq, tku]
-                               -  eta3B[pqk,tij]  *     W[ijr, sku]
-                                   +  W[pqk,tij]  * eta3B[ijr, sku]
-                                + eta3B[rqk,tij]  *     W[ijp, sku]
-                                   -  W[rqk,tij]  * eta3B[ijp, sku]
-                                + eta3B[prk,tij]  *     W[ijq, sku]
-                                   -  W[prk,tij]  * eta3B[ijq, sku]
-                               -  eta3B[pqk,uij]  *     W[ijr, tks]
-                                   +  W[pqk,uij]  * eta3B[ijr, tks]
-                                + eta3B[rqk,uij]  *     W[ijp, tks]
-                                   -  W[rqk,uij]  * eta3B[ijp, tks]
-                                + eta3B[prk,uij]  *     W[ijq, tks]
-                                   -  W[prk,uij]  * eta3B[ijq, tks]  )
-                for a in particles:
-                  for b in particles:
-                    for c in particles:
-                      abc = idx3B[(a,b,c)]
-                      sab,tab,uab = idx3B[(s,a,b)], idx3B[(t,a,b)], idx3B[(u,a,b)]
-                      tcu,scu,tcs = idx3B[(t,c,u)], idx3B[(s,c,u)], idx3B[(t,c,s)]
-                      pqc,rqc,prc = idx3B[(p,q,c)], idx3B[(r,q,c)], idx3B[(p,r,c)]
-                      abr,abp,abq = idx3B[(a,b,r)], idx3B[(a,b,p)], idx3B[(a,b,q)]
+              dw += ( eta3B[pqr,ijk]  *     W[ijk, stu ]
+                       -  W[pqr,ijk]  * eta3B[ijk, stu ] )
+              dw += 0.5*( eta3B[pqk,sij]  *     W[ijr, tku]
+                           -  W[pqk,sij]  * eta3B[ijr, tku]
+                        - eta3B[rqk,sij]  *     W[ijp, tku]
+                           +  W[rqk,sij]  * eta3B[ijp, tku]
+                        - eta3B[prk,sij]  *     W[ijq, tku]
+                           +  W[prk,sij]  * eta3B[ijq, tku]
+                       -  eta3B[pqk,tij]  *     W[ijr, sku]
+                           +  W[pqk,tij]  * eta3B[ijr, sku]
+                        + eta3B[rqk,tij]  *     W[ijp, sku]
+                           -  W[rqk,tij]  * eta3B[ijp, sku]
+                        + eta3B[prk,tij]  *     W[ijq, sku]
+                           -  W[prk,tij]  * eta3B[ijq, sku]
+                       -  eta3B[pqk,uij]  *     W[ijr, tks]
+                           +  W[pqk,uij]  * eta3B[ijr, tks]
+                        + eta3B[rqk,uij]  *     W[ijp, tks]
+                           -  W[rqk,uij]  * eta3B[ijp, tks]
+                        + eta3B[prk,uij]  *     W[ijq, tks]
+                           -  W[prk,uij]  * eta3B[ijq, tks]  )
+        for a in particles:
+          for b in particles:
+            for c in particles:
+              abc = idx3B[(a,b,c)]
+              sab,tab,uab = idx3B[(s,a,b)], idx3B[(t,a,b)], idx3B[(u,a,b)]
+              tcu,scu,tcs = idx3B[(t,c,u)], idx3B[(s,c,u)], idx3B[(t,c,s)]
+              pqc,rqc,prc = idx3B[(p,q,c)], idx3B[(r,q,c)], idx3B[(p,r,c)]
+              abr,abp,abq = idx3B[(a,b,r)], idx3B[(a,b,p)], idx3B[(a,b,q)]
   
-                      dw += ( eta3B[pqr,abc]  *     W[abc, stu ]
-                               -  W[pqr,abc]  * eta3B[abc, stu ] )
-                      dw += 0.5*( eta3B[pqc,sab]  *     W[abr, tcu]
-                                   -  W[pqc,sab]  * eta3B[abr, tcu]
-                                - eta3B[rqc,sab]  *     W[abp, tcu]
-                                   +  W[rqc,sab]  * eta3B[abp, tcu]
-                                - eta3B[prc,sab]  *     W[abq, tcu]
-                                   +  W[prc,sab]  * eta3B[abq, tcu]
-                               -  eta3B[pqc,tab]  *     W[abr, scu]
-                                   +  W[pqc,tab]  * eta3B[abr, scu]
-                                + eta3B[rqc,tab]  *     W[abp, scu]
-                                   -  W[rqc,tab]  * eta3B[abp, scu]
-                                + eta3B[prc,tab]  *     W[abq, scu]
-                                   -  W[prc,tab]  * eta3B[abq, scu]
-                               -  eta3B[pqc,uab]  *     W[abr, tcs]
-                                   +  W[pqc,uab]  * eta3B[abr, tcs]
-                                + eta3B[rqc,uab]  *     W[abp, tcs]
-                                   -  W[rqc,uab]  * eta3B[abp, tcs]
-                                + eta3B[prc,uab]  *     W[abq, tcs]
-                                   -  W[prc,uab]  * eta3B[abq, tcs]  )
-                dW[pqr,stu] += dw
+              dw += ( eta3B[pqr,abc]  *     W[abc, stu ]
+                       -  W[pqr,abc]  * eta3B[abc, stu ] )
+              dw += 0.5*( eta3B[pqc,sab]  *     W[abr, tcu]
+                           -  W[pqc,sab]  * eta3B[abr, tcu]
+                        - eta3B[rqc,sab]  *     W[abp, tcu]
+                           +  W[rqc,sab]  * eta3B[abp, tcu]
+                        - eta3B[prc,sab]  *     W[abq, tcu]
+                           +  W[prc,sab]  * eta3B[abq, tcu]
+                       -  eta3B[pqc,tab]  *     W[abr, scu]
+                           +  W[pqc,tab]  * eta3B[abr, scu]
+                        + eta3B[rqc,tab]  *     W[abp, scu]
+                           -  W[rqc,tab]  * eta3B[abp, scu]
+                        + eta3B[prc,tab]  *     W[abq, scu]
+                           -  W[prc,tab]  * eta3B[abq, scu]
+                       -  eta3B[pqc,uab]  *     W[abr, tcs]
+                           +  W[pqc,uab]  * eta3B[abr, tcs]
+                        + eta3B[rqc,uab]  *     W[abp, tcs]
+                           -  W[rqc,uab]  * eta3B[abp, tcs]
+                        + eta3B[prc,uab]  *     W[abq, tcs]
+                           -  W[prc,uab]  * eta3B[abq, tcs]  )
+#        dW[pqr,stu] += dw
+        dW[bra,ket] += dw
+        dW[ket,bra] = dW[bra,ket]
                 
     tstop = time.time()
     print "elapsed: ",tstop-tstart
@@ -1083,89 +1085,103 @@ def flow_imsrg3(eta1B, eta2B, eta3B, f, Gamma, W, user_data):
     print "(skipping)"
   else:
     tstart = time.time()
-    for p in range(dim1B):
-      for q in range(dim1B):
-        for r in range(dim1B):
-          pqr = idx3B[(p,q,r)]
-          for s in range(dim1B):
-            for t in range(dim1B):
-              for u in range(dim1B):
-                stu = idx3B[(s,t,u)]
-                dw = 0.
-                for a in particles:
-                  for b in particles:
-                    dw += 0.5 * ( eta2B[idx2B[(p,q)],idx2B[(a,b)]] *     W[idx3B[(a,b,r)],idx3B[(s,t,u)]]
-                                -     W[idx2B[(p,q)],idx2B[(a,b)]] * eta3B[idx3B[(a,b,r)],idx3B[(s,t,u)]]
-                                - eta2B[idx2B[(r,q)],idx2B[(a,b)]] *     W[idx3B[(a,b,p)],idx3B[(s,t,u)]]
-                                +     W[idx2B[(r,q)],idx2B[(a,b)]] * eta3B[idx3B[(a,b,p)],idx3B[(s,t,u)]]
-                                - eta2B[idx2B[(p,r)],idx2B[(a,b)]] *     W[idx3B[(a,b,q)],idx3B[(s,t,u)]]
-                                +     W[idx2B[(p,r)],idx2B[(a,b)]] * eta3B[idx3B[(a,b,q)],idx3B[(s,t,u)]]
-                                - eta2B[idx2B[(a,b)],idx2B[(s,t)]] *     W[idx3B[(p,q,r)],idx3B[(a,b,u)]]
-                                -     W[idx2B[(a,b)],idx2B[(s,t)]] * eta3B[idx3B[(p,q,r)],idx3B[(a,b,u)]]
-                                - eta2B[idx2B[(a,b)],idx2B[(u,t)]] *     W[idx3B[(p,q,r)],idx3B[(a,b,s)]]
-                                +     W[idx2B[(a,b)],idx2B[(u,t)]] * eta3B[idx3B[(p,q,r)],idx3B[(a,b,s)]]
-                                - eta2B[idx2B[(a,b)],idx2B[(s,u)]] *     W[idx3B[(p,q,r)],idx3B[(a,b,t)]]
-                                +     W[idx2B[(a,b)],idx2B[(s,u)]] * eta3B[idx3B[(p,q,r)],idx3B[(a,b,t)]] )
-                for a in holes:
-                  for b in holes:
-                    dw -= 0.5 * ( eta2B[idx2B[(p,q)],idx2B[(a,b)]] *     W[idx3B[(a,b,r)],idx3B[(s,t,u)]]
-                                -     W[idx2B[(p,q)],idx2B[(a,b)]] * eta3B[idx3B[(a,b,r)],idx3B[(s,t,u)]]
-                                - eta2B[idx2B[(r,q)],idx2B[(a,b)]] *     W[idx3B[(a,b,p)],idx3B[(s,t,u)]]
-                                +     W[idx2B[(r,q)],idx2B[(a,b)]] * eta3B[idx3B[(a,b,p)],idx3B[(s,t,u)]]
-                                - eta2B[idx2B[(p,r)],idx2B[(a,b)]] *     W[idx3B[(a,b,q)],idx3B[(s,t,u)]]
-                                +     W[idx2B[(p,r)],idx2B[(a,b)]] * eta3B[idx3B[(a,b,q)],idx3B[(s,t,u)]]
-                                - eta2B[idx2B[(a,b)],idx2B[(s,t)]] *     W[idx3B[(p,q,r)],idx3B[(a,b,u)]]
-                                -     W[idx2B[(a,b)],idx2B[(s,t)]] * eta3B[idx3B[(p,q,r)],idx3B[(a,b,u)]]
-                                - eta2B[idx2B[(a,b)],idx2B[(u,t)]] *     W[idx3B[(p,q,r)],idx3B[(a,b,s)]]
-                                +     W[idx2B[(a,b)],idx2B[(u,t)]] * eta3B[idx3B[(p,q,r)],idx3B[(a,b,s)]]
-                                - eta2B[idx2B[(a,b)],idx2B[(s,u)]] *     W[idx3B[(p,q,r)],idx3B[(a,b,t)]]
-                                +     W[idx2B[(a,b)],idx2B[(s,u)]] * eta3B[idx3B[(p,q,r)],idx3B[(a,b,t)]] )
-                for i in holes:
-                  for a in particles:
-                    dw +=       ( eta2B[idx2B[(p,i)],idx2B[(s,a)]] *     W[idx3B[(a,q,r)],idx3B[(i,t,u)]]
-                                -     W[idx2B[(p,i)],idx2B[(s,a)]] * eta3B[idx3B[(a,q,r)],idx3B[(i,t,u)]]
-                                - eta2B[idx2B[(q,i)],idx2B[(s,a)]] *     W[idx3B[(a,p,r)],idx3B[(i,t,u)]]
-                                +     W[idx2B[(q,i)],idx2B[(s,a)]] * eta3B[idx3B[(a,p,r)],idx3B[(i,t,u)]]
-                                - eta2B[idx2B[(r,i)],idx2B[(s,a)]] *     W[idx3B[(a,q,p)],idx3B[(i,t,u)]]
-                                +     W[idx2B[(r,i)],idx2B[(s,a)]] * eta3B[idx3B[(a,q,p)],idx3B[(i,t,u)]]
+    for bra, (p,q,r) in enumerate(bas3B):
+      for ket, (s,t,u) in enumerate(bas3B):
+        if ket < bra: continue
+        pqr,stu = bra,ket
+        pq,pr,rq = idx2B[(p,q)], idx2B[(p,r)], idx2B[(r,q)]
+        st,su,ut = idx2B[(s,t)], idx2B[(s,u)], idx2B[(u,t)]
+        dw = 0.
+        for a in particles:
+          for b in particles:
+            ab = idx2B[(a,b)]
+            abp,abq,abr = idx3B[(a,b,p)], idx3B[(a,b,q)], idx3B[(a,b,r)]
+            abS,abt,abu = idx3B[(a,b,s)], idx3B[(a,b,t)], idx3B[(a,b,u)]
+            dw += 0.5 * ( eta2B[pq,ab] *     W[abr,stu]
+                        -     W[pq,ab] * eta3B[abr,stu]
+                        - eta2B[rq,ab] *     W[abp,stu]
+                        +     W[rq,ab] * eta3B[abp,stu]
+                        - eta2B[pr,ab] *     W[abq,stu]
+                        +     W[pr,ab] * eta3B[abq,stu]
+                        - eta2B[ab,st] *     W[pqr,abu]
+                        -     W[ab,st] * eta3B[pqr,abu]
+                        - eta2B[ab,ut] *     W[pqr,abS]
+                        +     W[ab,ut] * eta3B[pqr,abS]
+                        - eta2B[ab,su] *     W[pqr,abt]
+                        +     W[ab,su] * eta3B[pqr,abt] )
+        for a in holes:
+          for b in holes:
+            ab = idx2B[(a,b)]
+            abS,abt,abu = idx3B[(a,b,s)], idx3B[(a,b,t)], idx3B[(a,b,u)]
+            dw -= 0.5 * ( eta2B[pq,ab] *     W[abr,stu]
+                        -     W[pq,ab] * eta3B[abr,stu]
+                        - eta2B[rq,ab] *     W[abp,stu]
+                        +     W[rq,ab] * eta3B[abp,stu]
+                        - eta2B[pr,ab] *     W[abq,stu]
+                        +     W[pr,ab] * eta3B[abq,stu]
+                        - eta2B[ab,st] *     W[pqr,abu]
+                        -     W[ab,st] * eta3B[pqr,abu]
+                        - eta2B[ab,ut] *     W[pqr,abS]
+                        +     W[ab,ut] * eta3B[pqr,abS]
+                        - eta2B[ab,su] *     W[pqr,abt]
+                        +     W[ab,su] * eta3B[pqr,abt] )
+
+        for i in holes:
+          pi,qi,ri = idx2B[(p,i)], idx2B[(q,i)], idx2B[(r,i)]
+          its,itu,isu = idx3B[(i,t,s)], idx3B[(i,t,u)], idx3B[(i,s,u)]
+          for a in particles:
+            sa,ta,ua = idx2B[(s,a)], idx2B[(t,a)], idx2B[(u,a)]
+            apr,aqr,aqp = idx3B[(a,p,r)], idx3B[(a,q,r)], idx3B[(a,q,p)]
+            dw +=       ( eta2B[pi,sa] *     W[aqr,itu]
+                        -     W[pi,sa] * eta3B[aqr,itu]
+                        - eta2B[qi,sa] *     W[apr,itu]
+                        +     W[qi,sa] * eta3B[apr,itu]
+                        - eta2B[ri,sa] *     W[aqp,itu]
+                        +     W[ri,sa] * eta3B[aqp,itu]
   
-                                - eta2B[idx2B[(p,i)],idx2B[(t,a)]] *     W[idx3B[(a,q,r)],idx3B[(i,s,u)]]
-                                +     W[idx2B[(p,i)],idx2B[(t,a)]] * eta3B[idx3B[(a,q,r)],idx3B[(i,s,u)]]
-                                + eta2B[idx2B[(q,i)],idx2B[(t,a)]] *     W[idx3B[(a,p,r)],idx3B[(i,s,u)]]
-                                -     W[idx2B[(q,i)],idx2B[(t,a)]] * eta3B[idx3B[(a,p,r)],idx3B[(i,s,u)]]
-                                + eta2B[idx2B[(r,i)],idx2B[(t,a)]] *     W[idx3B[(a,q,p)],idx3B[(i,s,u)]]
-                                -     W[idx2B[(r,i)],idx2B[(t,a)]] * eta3B[idx3B[(a,q,p)],idx3B[(i,s,u)]]
+                        - eta2B[pi,ta] *     W[aqr,isu]
+                        +     W[pi,ta] * eta3B[aqr,isu]
+                        + eta2B[qi,ta] *     W[apr,isu]
+                        -     W[qi,ta] * eta3B[apr,isu]
+                        + eta2B[ri,ta] *     W[aqp,isu]
+                        -     W[ri,ta] * eta3B[aqp,isu]
   
-                                - eta2B[idx2B[(p,i)],idx2B[(u,a)]] *     W[idx3B[(a,q,r)],idx3B[(i,t,s)]]
-                                +     W[idx2B[(p,i)],idx2B[(u,a)]] * eta3B[idx3B[(a,q,r)],idx3B[(i,t,s)]]
-                                + eta2B[idx2B[(q,i)],idx2B[(u,a)]] *     W[idx3B[(a,p,r)],idx3B[(i,t,s)]]
-                                -     W[idx2B[(q,i)],idx2B[(u,a)]] * eta3B[idx3B[(a,p,r)],idx3B[(i,t,s)]]
-                                + eta2B[idx2B[(r,i)],idx2B[(u,a)]] *     W[idx3B[(a,q,p)],idx3B[(i,t,s)]]
-                                -     W[idx2B[(r,i)],idx2B[(u,a)]] * eta3B[idx3B[(a,q,p)],idx3B[(i,t,s)]] )
-                for a in holes:
-                  for i in particles:
-                    dw +=       ( eta2B[idx2B[(p,i)],idx2B[(s,a)]] *     W[idx3B[(a,q,r)],idx3B[(i,t,u)]]
-                                -     W[idx2B[(p,i)],idx2B[(s,a)]] * eta3B[idx3B[(a,q,r)],idx3B[(i,t,u)]]
-                                - eta2B[idx2B[(q,i)],idx2B[(s,a)]] *     W[idx3B[(a,p,r)],idx3B[(i,t,u)]]
-                                +     W[idx2B[(q,i)],idx2B[(s,a)]] * eta3B[idx3B[(a,p,r)],idx3B[(i,t,u)]]
-                                - eta2B[idx2B[(r,i)],idx2B[(s,a)]] *     W[idx3B[(a,q,p)],idx3B[(i,t,u)]]
-                                +     W[idx2B[(r,i)],idx2B[(s,a)]] * eta3B[idx3B[(a,q,p)],idx3B[(i,t,u)]]
+                        - eta2B[pi,ua] *     W[aqr,its]
+                        +     W[pi,ua] * eta3B[aqr,its]
+                        + eta2B[qi,ua] *     W[apr,its]
+                        -     W[qi,ua] * eta3B[apr,its]
+                        + eta2B[ri,ua] *     W[aqp,its]
+                        -     W[ri,ua] * eta3B[aqp,its] )
+        for a in holes:
+          sa,ta,ua = idx2B[(s,a)], idx2B[(t,a)], idx2B[(u,a)]
+          apr,aqr,aqp = idx3B[(a,p,r)], idx3B[(a,q,r)], idx3B[(a,q,p)]
+          for i in particles:
+            pi,qi,ri = idx2B[(p,i)], idx2B[(q,i)], idx2B[(r,i)]
+            its,itu,isu = idx3B[(i,t,s)], idx3B[(i,t,u)], idx3B[(i,s,u)]
+            dw +=       ( eta2B[pi,sa] *     W[aqr,itu]
+                        -     W[pi,sa] * eta3B[aqr,itu]
+                        - eta2B[qi,sa] *     W[apr,itu]
+                        +     W[qi,sa] * eta3B[apr,itu]
+                        - eta2B[ri,sa] *     W[aqp,itu]
+                        +     W[ri,sa] * eta3B[aqp,itu]
   
-                                - eta2B[idx2B[(p,i)],idx2B[(t,a)]] *     W[idx3B[(a,q,r)],idx3B[(i,s,u)]]
-                                +     W[idx2B[(p,i)],idx2B[(t,a)]] * eta3B[idx3B[(a,q,r)],idx3B[(i,s,u)]]
-                                + eta2B[idx2B[(q,i)],idx2B[(t,a)]] *     W[idx3B[(a,p,r)],idx3B[(i,s,u)]]
-                                -     W[idx2B[(q,i)],idx2B[(t,a)]] * eta3B[idx3B[(a,p,r)],idx3B[(i,s,u)]]
-                                + eta2B[idx2B[(r,i)],idx2B[(t,a)]] *     W[idx3B[(a,q,p)],idx3B[(i,s,u)]]
-                                -     W[idx2B[(r,i)],idx2B[(t,a)]] * eta3B[idx3B[(a,q,p)],idx3B[(i,s,u)]]
+                        - eta2B[pi,ta] *     W[aqr,isu]
+                        +     W[pi,ta] * eta3B[aqr,isu]
+                        + eta2B[qi,ta] *     W[apr,isu]
+                        -     W[qi,ta] * eta3B[apr,isu]
+                        + eta2B[ri,ta] *     W[aqp,isu]
+                        -     W[ri,ta] * eta3B[aqp,isu]
   
-                                - eta2B[idx2B[(p,i)],idx2B[(u,a)]] *     W[idx3B[(a,q,r)],idx3B[(i,t,s)]]
-                                +     W[idx2B[(p,i)],idx2B[(u,a)]] * eta3B[idx3B[(a,q,r)],idx3B[(i,t,s)]]
-                                + eta2B[idx2B[(q,i)],idx2B[(u,a)]] *     W[idx3B[(a,p,r)],idx3B[(i,t,s)]]
-                                -     W[idx2B[(q,i)],idx2B[(u,a)]] * eta3B[idx3B[(a,p,r)],idx3B[(i,t,s)]]
-                                + eta2B[idx2B[(r,i)],idx2B[(u,a)]] *     W[idx3B[(a,q,p)],idx3B[(i,t,s)]]
-                                -     W[idx2B[(r,i)],idx2B[(u,a)]] * eta3B[idx3B[(a,q,p)],idx3B[(i,t,s)]] )
-                   
-                dW[pqr,stu] += dw
+                        - eta2B[pi,ua] *     W[aqr,its]
+                        +     W[pi,ua] * eta3B[aqr,its]
+                        + eta2B[qi,ua] *     W[apr,its]
+                        -     W[qi,ua] * eta3B[apr,its]
+                        + eta2B[ri,ua] *     W[aqp,its]
+                        -     W[ri,ua] * eta3B[aqp,its] )
+           
+#        dW[pqr,stu] += dw
+        dW[bra,ket] += dw
+        dW[ket,bra] = dW[bra,ket]
                       
   
     tstop = time.time()
@@ -1188,12 +1204,12 @@ def flow_imsrg3(eta1B, eta2B, eta3B, f, Gamma, W, user_data):
               if ket<bra: continue
               dw = 0.
               for a in range(dim1B):
-                dw += ( eta1B[p,a] * W[idx3B[(a,q,r)],idx3B[(s,t,u)]] - f[p,a] * eta3B[idx3B[(a,q,r)],idx3B[(s,t,u)]]
-                      - eta1B[a,u] * W[idx3B[(p,q,r)],idx3B[(s,t,a)]] - f[a,u] * eta3B[idx3B[(p,q,r)],idx3B[(s,t,a)]]
-                      - eta1B[q,a] * W[idx3B[(a,p,r)],idx3B[(s,t,u)]] - f[q,a] * eta3B[idx3B[(a,p,r)],idx3B[(s,t,u)]]
-                      + eta1B[a,s] * W[idx3B[(p,q,r)],idx3B[(u,t,a)]] - f[a,s] * eta3B[idx3B[(p,q,r)],idx3B[(u,t,a)]]
-                      - eta1B[r,a] * W[idx3B[(a,q,p)],idx3B[(s,t,u)]] - f[r,a] * eta3B[idx3B[(a,q,p)],idx3B[(s,t,u)]]
-                      + eta1B[a,t] * W[idx3B[(p,q,r)],idx3B[(s,u,a)]] - f[a,t] * eta3B[idx3B[(p,q,r)],idx3B[(s,u,a)]] )
+                dw += ( eta1B[p,a] * W[idx3B[(a,q,r)], ket] - f[p,a] * eta3B[idx3B[(a,q,r)], ket]
+                      - eta1B[q,a] * W[idx3B[(a,p,r)], ket] - f[q,a] * eta3B[idx3B[(a,p,r)], ket]
+                      - eta1B[r,a] * W[idx3B[(a,q,p)], ket] - f[r,a] * eta3B[idx3B[(a,q,p)], ket]
+                      - eta1B[a,u] * W[bra, idx3B[(s,t,a)]] - f[a,u] * eta3B[bra, idx3B[(s,t,a)]]
+                      + eta1B[a,s] * W[bra, idx3B[(u,t,a)]] - f[a,s] * eta3B[bra, idx3B[(u,t,a)]]
+                      + eta1B[a,t] * W[bra, idx3B[(s,u,a)]] - f[a,t] * eta3B[bra, idx3B[(s,u,a)]] )
 #              dW[pqr,stu] += dw
               dW[bra,ket] += dw
               dW[ket,bra] = dW[bra,ket]
