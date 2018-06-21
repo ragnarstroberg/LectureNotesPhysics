@@ -35,7 +35,8 @@ def Hamiltonian(delta,g):
   return H
 
 def myLabels(x, pos):
-  return '$%s$'%x
+  return '$%.1f$'%x
+#  return '$%s$'%x
 
 # g    unc    exact                 mbpt2       mbpt2       mbpt3       mbpt4        ccd
 # -1.0 3.0 -0.22013    -0.214686   -0.466667   -0.466667    0.0488889  -0.44400000 -0.21895200
@@ -71,6 +72,7 @@ uncorr = [  3.0, 2.9, 2.8, 2.7, 2.6, 2.5, 2.4, 2.3, 2.2, 2.1, 2.0, 1.9, 1.8, 1.7
 # exact
 eigenvals  = [eigvalsh(Hamiltonian(1.0,g))[0] for g in glist]
 exact      = [ a - b for a, b in zip(eigenvals,uncorr)]
+print 'exact:', eigenvals
   
 
 # CCD correlation energy
@@ -90,10 +92,14 @@ white  = [ ]
 wegner = [ ]
 imtime = [ ]
 
+# SRS
+imsrg3 = [ -0.219247, -0.06306764, 0.0, -0.08330179, -0.36710495 ]
+
 # White generator flows - the MBPT numbers are contained in all flows, regardless of generator
 
 for g in glist:
-  filename = glob.glob("results/imsrg-white*g%+3.1f*.flow"%(g))[0]
+#  filename = glob.glob("results/imsrg-white*g%+3.1f*.flow"%(g))[0]
+  filename = glob.glob("results/imsrg-white*g%+3.1f*ev1.flow"%(g))[0]
   data = np.loadtxt(filename, skiprows=2)
   if g != 0.0:
 	mbpt2.append(data[0,2])		        	# correlation energy: just MBPT2
@@ -154,6 +160,8 @@ pl_mbpt3 = plt.plot(glist, mbpt3, marker='v', markersize=8, color='orange', line
 pl_mbpt4 = plt.plot(glist, mbpt4, marker='D', markersize=8, color='red',    linestyle='--',  linewidth = 2.0, label = 'MBPT(4)')
 pl_ccd   = plt.plot(glist,   ccd, marker='s', markersize=8, color='green',  dashes=[8,6], linewidth = 2.0, label = 'CCD')
 pl_white = plt.plot(glist, white, marker='o', markersize=8, color='blue',   linestyle='-', linewidth = 2.0, label = 'IMSRG(2)')
+
+pl_imsrg3 = plt.plot([-1.0, -0.5, 0.0, 0.5, 1.0], imsrg3, marker='*', markersize=12, color='violet', mec='m',   linestyle='', linewidth = 2.0, label = 'IMSRG(3)')
 
 plt.legend(bbox_to_anchor=(0.35, 0.05), loc=3, borderaxespad=0.5)
 plt.savefig("correlation_energy.pdf", bbox_inches="tight", pad_inches=0.05)
